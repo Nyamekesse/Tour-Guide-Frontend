@@ -4,27 +4,20 @@ import { useNavigate } from "react-router-dom";
 import { SERVER_ERROR } from "../../../shared/constants";
 import { setStoredUser } from "../../../shared/utils";
 import axiosInstance from "../../../axiosInstance";
+import { toast } from "react-toastify";
 
-async function signin({ email, password }) {
+async function signin({ usernameOrEmail, password }) {
   try {
-    const { data } = await axiosInstance.post("/auth/login", {
-      email,
+    let { data } = await axiosInstance.post("/auth/login", {
+      usernameOrEmail,
       password,
     });
-    return data.message;
-  } catch (error) {
-    const message =
-      axios.isAxiosError(error) && error?.response?.data?.message
-        ? error?.response?.data?.message
-        : SERVER_ERROR;
-    throw new Error(message);
-  }
-}
-
-async function getUserDetails() {
-  try {
-    const { data } = await axiosInstance.get("/user/me");
-    setStoredUser(data.user);
+    data = {
+      profile: data.profile,
+      token: data.token,
+    };
+    setStoredUser(data);
+    return data;
   } catch (error) {
     const message =
       axios.isAxiosError(error) && error?.response?.data?.message
@@ -36,12 +29,16 @@ async function getUserDetails() {
 
 export function useAuthLogin() {
   const navigate = useNavigate();
-  const { mutate } = useMutation((data) => signin(data), {
-    onSuccess: async () => {
-      await getUserDetails();
-      navigate("/", { replace: true });
-    },
-  });
+  const { mutate, isLoading, data, isError, error } = useMutation(
+    (credentials) => signin(credentials),
+    {
+      onSuccess: async () => {
+        toast.success("Login Successful");
+        navigate("/home/dashboard", { replace: true });
+        window.location.reload(true);
+      },
+    }
+  );
 
-  return { mutate };
+  return { mutate, isLoading, data, isError, error };
 }

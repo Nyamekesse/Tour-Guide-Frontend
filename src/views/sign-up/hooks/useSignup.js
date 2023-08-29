@@ -1,17 +1,19 @@
 import axios from "axios";
-import { useMutation } from "react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import axiosInstance from "../../../axiosInstance";
 import { SERVER_ERROR } from "../../../shared/constants";
+import { toast } from "react-toastify";
 
-async function signup({ username, password, email }) {
+async function signup({ username, password, email, role }) {
   try {
-    const { data } = await axiosInstance.post("/auth/register", {
+    const { data } = await axiosInstance.post("/auth/signup", {
       username,
       email,
       password,
+      role,
     });
-    return data.message;
+    return data?.user;
   } catch (error) {
     const message =
       axios.isAxiosError(error) && error?.response?.data?.message
@@ -23,11 +25,12 @@ async function signup({ username, password, email }) {
 
 export function useAuthSignUp() {
   const navigate = useNavigate();
-  const { mutate } = useMutation((data) => signup(data), {
+  const { mutate, isLoading } = useMutation((data) => signup(data), {
     onSuccess: () => {
+      toast.success("Accounts Created!");
       navigate("/log-in", { replace: true });
     },
   });
 
-  return { mutate };
+  return { mutate, isLoading };
 }

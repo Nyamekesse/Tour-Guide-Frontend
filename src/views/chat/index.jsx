@@ -3,38 +3,66 @@ import AiResponse from "./components/AiResponse";
 import Sender from "./components/Sender";
 import EmptyChat from "./components/EmptyChat";
 import { useChat } from "./hooks/useChat";
-import Loading from "./components/Loading";
+import LoadingBubbles from "../../shared/components/LoadingBubbles";
+import { useLogOut } from "../../shared/hooks/useLogOut";
+import { useGetQueries } from "./hooks/useQueries";
 
-const ChatView = () => {
+const ChatView = ({ user }) => {
+  const { logOut } = useLogOut();
+  const { allQueries, isLoading: queriesLoading } = useGetQueries();
   const scrollRef = useRef();
-  const { data, isLoading, isError, error, mutate } = useChat();
-  const [messages, setMessages] = useState([
-    { author: "user", content: "how are you" },
-    { author: "ai", content: "i am good" },
-  ]);
-  const [chat, setChat] = useState({ author: "user", content: "" });
+  const { data, isLoading, mutate } = useChat();
+  const [messages, setMessages] = useState([]);
+  const [chat, setChat] = useState({
+    _id: "1",
+    author: { role: "tourist", display_picture: user.profile.display_picture },
+    content: "",
+    date: new Date().toISOString(),
+  });
   const handleChange = (e) => {
     setChat({ ...chat, content: e.target.value });
   };
+
   const handleChatSend = () => {
-    if (chat.content.length) mutate(chat.content);
-    setMessages((prevChat) => [...prevChat, chat]);
-    setChat({ ...chat, content: "" });
+    if (chat.content.length) {
+      mutate(chat.content, {
+        onSuccess: (responseData) => {
+          const res = {
+            _id: new Date().getTime,
+            author: {
+              role: "bot",
+              display_picture:
+                "https://api.multiavatar.com/TA-Ai.svg?apikey=LFTk59wNposvr3",
+            },
+            content: responseData,
+            date: new Date().toISOString(),
+          };
+          // Update the setMessages state with the returned data
+          setMessages((prevMessages) => [...prevMessages, res]);
+
+          // You can also access the updated data here
+          console.log("Updated data:", responseData);
+          console.log("Updated data:", res);
+        },
+      });
+    }
+    setMessages((prevMessages) => [...prevMessages, chat]);
     scrollRef.current.scrollIntoView({ behavior: "smooth" });
+    setChat({
+      _id: "1",
+      author: {
+        role: "tourist",
+        display_picture: user.profile.display_picture,
+      },
+      content: "",
+      date: new Date().toISOString(),
+    });
   };
   useEffect(() => {
-    setMessages((prevChat) => [...prevChat, { author: "ai", content: data }]);
+    setMessages(allQueries);
     scrollRef.current.scrollIntoView({ behavior: "smooth" });
-  }, [data, scrollRef]);
+  }, [allQueries]);
 
-  if (isError) {
-    return (
-      <>
-        <h2>Something happened</h2>
-        <p>{error.toString()}</p>
-      </>
-    );
-  }
   return (
     <>
       <div className="h-screen overflow-hidden flex items-center justify-center">
@@ -63,38 +91,61 @@ const ChatView = () => {
               <div className="flex flex-col items-center bg-indigo-100 border border-gray-200 mt-4 w-full py-6 px-4 rounded-lg">
                 <div className="h-20 w-20 rounded-full border overflow-hidden">
                   <img
-                    src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Ftse1.mm.bing.net%2Fth%3Fid%3DOIP.092Z2opsazcOJjXNQpydNgHaIR%26pid%3DApi&f=1&ipt=2b1362b89fff5a3ab79da20ab93bab9f5fce267335b5d5629f52c4aafbbf333e&ipo=images"
+                    src={user.profile.display_picture}
                     alt="Avatar"
                     className="h-full w-full"
                   />
                 </div>
-                <div className="text-sm font-semibold mt-2">Mr. UCC</div>
+                <div className="text-sm font-semibold mt-2">
+                  {user.profile.name}
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={logOut}
+                className="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm mt-3 px-4 py-2 text-center mr-3 md:mr-0 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+              >
+                Log Out
+              </button>
             </div>
-            <div className="flex flex-col flex-auto w-5/6 h-full p-6">
+            <div className="relative flex flex-col flex-auto w-5/6 h-full p-6">
               <div className="flex flex-col flex-auto flex-shrink-0 rounded-2xl bg-gray-100 h-full p-4">
                 <div className="flex flex-col h-full overflow-x-auto mb-4">
                   <div className="flex flex-col h-full">
                     <div className="grid grid-cols-12 gap-y-2">
-                      {messages?.length ? (
+                      {messages?.length > 0 ? (
                         messages.map((message, index) => {
-                          if (message.author !== "ai") {
+                          if (message.author.role !== "bot") {
                             return (
                               message.content && (
-                                <Sender key={index} text={message.content} />
+                                <Sender
+                                  key={index}
+                                  text={message.content}
+                                  image={message.author.display_picture}
+                                />
                               )
                             );
                           }
                           return (
                             message.content && (
-                              <AiResponse key={index} text={message.content} />
+                              <AiResponse
+                                key={index}
+                                text={message.content}
+                                image={message.author.display_picture}
+                              />
                             )
                           );
                         })
+                      ) : queriesLoading ? (
+                        <div className="absolute left-[40%] top-[45%] transform translate-x-[-50%] translate-y-[-50%]">
+                          <LoadingBubbles />
+                        </div>
                       ) : (
-                        <EmptyChat />
+                        <div className="absolute left-[48%] top-[45%] transform translate-x-[-50%] translate-y-[-50%]">
+                          <EmptyChat />
+                        </div>
                       )}
-                      {isLoading && <Loading />}
+                      {isLoading && <LoadingBubbles />}
                       <div ref={scrollRef} />
                     </div>
                   </div>

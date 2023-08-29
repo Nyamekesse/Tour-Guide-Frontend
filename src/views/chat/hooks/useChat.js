@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import axiosInstance from "../../../axiosInstance";
 import { SERVER_ERROR } from "../../../shared/constants";
@@ -18,8 +18,14 @@ async function sendChat(chat) {
 }
 
 export function useChat() {
-  const { isLoading, isError, error, data, mutate } = useMutation((chat) =>
-    sendChat(chat)
+  const queryClient = useQueryClient();
+  const { isLoading, isError, error, data, mutate } = useMutation(
+    (chat) => sendChat(chat),
+    {
+      onSuccess: async () => {
+        queryClient.invalidateQueries("messages");
+      },
+    }
   );
 
   return { isLoading, isError, error, data, mutate };
